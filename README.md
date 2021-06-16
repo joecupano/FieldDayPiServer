@@ -53,5 +53,7 @@ Raspberry Pi 3B or better
 ```
 
 - Once rebooted, log in as pi then copy the <mark>server_install.sh</mark> shell script from the repo into the pi home directory and run.
+- Create any web pages/files in the /var/www/html directory. See sample-web-site directory in repo for some inspiration.
+
 
 
