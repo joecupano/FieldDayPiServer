@@ -38,6 +38,11 @@ sudo apt-get -y upgrade
 #EOF
 sleep 3
 echo " "
+echo "- Add git package"
+echo " "
+sudo apt-get -y install git
+sleep 3
+echo " "
 echo "- Update Static IP Address"
 echo " "
 sudo cat << EOF >> /etc/dhcpcd.conf

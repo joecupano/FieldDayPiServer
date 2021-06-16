@@ -20,9 +20,8 @@ These instructions are targeted for thos experienced with Linux and the Raspberr
 
 ## Specification
 
-Raspberry Pi 3B or better
-
-16GB microSD Class 10 card
+- Raspberry Pi 3B or better
+- 16GB microSD Class 10 card
 
 ## Create Image
 
@@ -30,8 +29,10 @@ Raspberry Pi 3B or better
 
 ## Configure Pi
 
-- Log into the pi and run <mark>sudo raspi-config</mark>
-
+- Log into the pi and run raspi-config
+```
+   sudo raspi-config
+```
 - Within raspi-config make the following changes:
 -- Change password for the 'pi' user
 -- Change hostname
@@ -42,8 +43,20 @@ Raspberry Pi 3B or better
 -- Set Predictable Network Interface Names to No
 -- Select Finish then Yes to reboot
 
-- Once rebooted, log in as pi then copy the <mark>server_install.sh</mark> shell script from the repo into the pi home directory, make executable, then run.
-- Create any web pages/files in the /var/www/html directory. See sample-web-site directory in repo for some inspiration.
+- Once rebooted, log in as pi
+- Install git
+```
+   sudo apt-get -y install git
+```
+- Clone repo
+```
+   git clone https://github.com/joecupano/FieldDayPiServer.git
+```
+- Change directory into cloned repo and run script
+```
+   ./secure_install.sh
+```
+- Update/Create any web pages/files in the /var/www/html directory. See sample-web-site directory in repo for some inspiration.
 
 
 
