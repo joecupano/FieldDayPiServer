@@ -6,10 +6,8 @@ How to build a Field Day Server using a Raspberry Pi.
 
 This server build provides the following services:
 
-- Windows File Server (Samba) for hosting a shared log file
+- Windows File Server (Samba) for hosting a shared or dedicated log files
   
-  - N3FJP ARRL Fied Day Contest Log server
-
 - Web Server for hosting web pages that provide use information for Field Day participants
   
   - Site Operations info
