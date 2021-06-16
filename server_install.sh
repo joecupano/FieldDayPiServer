@@ -38,11 +38,6 @@ sudo apt-get -y upgrade
 #EOF
 sleep 3
 echo " "
-echo "- Add git package"
-echo " "
-sudo apt-get -y install git
-sleep 3
-echo " "
 echo "- Update Static IP Address"
 echo " "
 sudo cat << EOF >> /etc/dhcpcd.conf
@@ -108,6 +103,10 @@ sudo apt-get -y install nginx
 ##echo "- Generate self-signed SSL certificate --  /C=US/ST=New York/L=Hudson Valley/O=Hudson Valley Digital Network/OU=HASviolet/CN=hvdn.org"
 ##echo " "
 ##sudo openssl req -x509 -nodes -days 1095 -newkey rsa:2048 -subj "/C=US/ST=New York/L=Hudson Valley/O=Hudson Valley Digital Network/OU=HASviolet/CN=hvdn.org" -keyout /etc/ssl/private/fielddaypiserver.key -out /etc/ssl/private/fielddaypiserver.crt
+echo " "
+echo "- Copy sample web pages into /var/www/html"
+echo " "
+sudo cp ~/FieldDayPiServer/sample-web-site/* /var/www/html
 echo " "
 echo "- Start Web Server (nginx)"
 echo " "
