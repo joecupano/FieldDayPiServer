@@ -55,6 +55,6 @@ Raspberry Pi 3B or better
 
 ```
 
-Once rebooted, log in as pi then copy the <mark>server_install.sh</mark> shell script from the repo into the pi home directory and run.
+- Once rebooted, log in as pi then copy the <mark>server_install.sh</mark> shell script from the repo into the pi home directory and run.
 
 
