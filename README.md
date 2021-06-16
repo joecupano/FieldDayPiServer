@@ -54,8 +54,29 @@ These instructions are targeted for thos experienced with Linux and the Raspberr
 ```
 - Change directory into cloned repo and run script
 ```
-   ./secure_install.sh
+   ./server_install.sh
 ```
+- To allow pi and fieldday home directoires to accessibale via windows file share, append the following lines into /etc/samba/smb.conf
+```
+### added by server_script.sh ###
+[fieldday]
+path = /home/fieldday
+writeable=yes
+create maskd=0775
+directory mask=0775
+public=no
+
+[pi]
+path = /home/pi
+writeable=yes
+create maskd=0775
+directory mask=0775
+public=no
+```
+- Restart windows file share
+'''
+sudo systemctl restart smbd
+'''
 - Update/Create any web pages/files in the /var/www/html directory. See sample-web-site directory in repo for some inspiration.
 
 

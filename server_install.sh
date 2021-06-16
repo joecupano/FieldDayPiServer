@@ -69,23 +69,6 @@ echo "- Install Windows File Server (Samba)"
 echo " "
 sudo apt-get -y install samba samba-common-bin
 sleep 3
-sudo cat << EOF >> /etc/samba/smb.conf
-
-### added by server_script.sh ###
-[fieldday]
-path = /home/fieldday
-writeable=yes
-create maskd=0775
-directory mask=0775
-public=no
-
-[pi]
-path = /home/pi
-writeable=yes
-create maskd=0775
-directory mask=0775
-public=no
-EOF
 echo " "
 echo "- Add pi password to Windows File Server"
 echo " "
