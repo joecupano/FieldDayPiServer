@@ -62,11 +62,11 @@ echo " "
 echo "- Add Field Day Log Account"
 echo " "
 sudo adduser fieldday
-sleep 3
 echo " "
 echo "- Install Windows File Server (Samba)"
 echo " "
 sudo apt-get -y install samba samba-common-bin
+sleep 3
 sudo cat << EOF >> /etc/samba/smb.conf
 [fieldday]
 path = /home/fieldday
