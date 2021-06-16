@@ -41,6 +41,8 @@ echo " "
 echo "- Update Static IP Address"
 echo " "
 sudo cat << EOF >> /etc/dhcpcd.conf
+
+### added by server_script.sh ###
 interface eth0
 arping 192.168.15.1
 arping 192.168.73.1
