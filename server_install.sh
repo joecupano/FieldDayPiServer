@@ -70,6 +70,8 @@ echo " "
 sudo apt-get -y install samba samba-common-bin
 sleep 3
 sudo cat << EOF >> /etc/samba/smb.conf
+
+### added by server_script.sh ###
 [fieldday]
 path = /home/fieldday
 writeable=yes
