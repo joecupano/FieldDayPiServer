@@ -32,12 +32,17 @@ Raspberry Pi 3B or better
 
 - Log into the pi and run <mark>sudo raspi-config</mark>
 
-- Within raspi-config make changes for your locale and the following:
--- Under Performance Options set GPU Memory for 16 
--- Under Advanced Options set Network Interface Names to No
--  Select Finish then Yes to reboot
+- Within raspi-config make the following changes:
+-- Change password for the 'pi' user
+-- Change hostname
+-- Boot to text console requiring user to login
+-- Enable remote command line access using ssh
+-- Set GPU Memory for 16
+-- Configure langage and regional settings (timezone should be local)
+-- Set Predictable Network Interface Names to No
+-- Select Finish then Yes to reboot
 
-- Once rebooted, log in as pi then copy the <mark>server_install.sh</mark> shell script from the repo into the pi home directory and run.
+- Once rebooted, log in as pi then copy the <mark>server_install.sh</mark> shell script from the repo into the pi home directory, make executable, then run.
 - Create any web pages/files in the /var/www/html directory. See sample-web-site directory in repo for some inspiration.
 
 

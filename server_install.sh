@@ -29,13 +29,14 @@ echo "- Ensure Operating System is up to date"
 echo " "
 sudo apt-get update
 sudo apt-get -y upgrade
-echo " "
-echo "- Disable WiFi and Bluetooth"
-echo " "
-sudo cat << EOF >> /boot/config.txt
-dtoverlay=disable-wifi
-dtoverlay=disable-
-EOF
+#echo " "
+#echo "- Disable WiFi and Bluetooth"
+#echo " "
+#sudo cat << EOF >> /boot/config.txt
+#dtoverlay=disable-wifi
+#dtoverlay=disable-
+#EOF
+sleep 3
 echo " "
 echo "- Update Static IP Address"
 echo " "
@@ -56,10 +57,12 @@ static ip_address=192.168.10.75/21
 static routers=192.168.15.1
 static domain_name_servers=192.168.15.1 
 EOF
+sleep 3
 echo " "
 echo "- Add Field Day Log Account"
 echo " "
 sudo adduser fieldday
+sleep 3
 echo " "
 echo "- Install Windows File Server (Samba)"
 echo " "
@@ -80,9 +83,12 @@ directory mask=0775
 public=no
 EOF
 echo " "
-echo "- Add pi and fieldday accounts to Windows File Server"
+echo "- Add pi password to Windows File Server"
 echo " "
 sudo smbpasswd -a pi
+echo " "
+echo "- Add fieldday password to Windows File Server"
+echo " "
 sudo smbpasswd -a fieldday
 echo " "
 echo "- Start Windows File Server"
@@ -91,6 +97,7 @@ sudo systemctl restart smbd
 echo " "
 echo "- Install Web Server (nginx)"
 echo " "
+sleep 3
 sudo apt-get -y install nginx
 ##echo " "
 ##echo "- Generate self-signed SSL certificate --  /C=US/ST=New York/L=Hudson Valley/O=Hudson Valley Digital Network/OU=HASviolet/CN=hvdn.org"
