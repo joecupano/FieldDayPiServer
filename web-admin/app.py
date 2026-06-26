@@ -10,18 +10,16 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 
 app = Flask(__name__)
 
-# Load secret key generated at install time
 try:
     with open("/etc/fieldday/admin_secret.key") as f:
         app.secret_key = f.read().strip()
 except OSError:
     app.secret_key = "fieldday-dev-key-not-for-production"
 
-SETTINGS_FILE    = "/etc/fieldday/ap_settings.json"
-HOSTAPD_CONF     = "/etc/hostapd/hostapd.conf"
-DNSMASQ_CONF     = "/etc/dnsmasq.conf"
-SAMBA_SHARES     = "/etc/fieldday/samba-shares.conf"
-NM_UNMANAGED     = "/etc/NetworkManager/conf.d/99-fieldday-unmanaged.conf"
+SETTINGS_FILE = "/etc/fieldday/ap_settings.json"
+HOSTAPD_CONF  = "/etc/hostapd/hostapd.conf"
+DNSMASQ_CONF  = "/etc/dnsmasq.conf"
+NM_UNMANAGED  = "/etc/NetworkManager/conf.d/99-fieldday-unmanaged.conf"
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
@@ -30,8 +28,8 @@ try:
     def _check_password(password):
         return _pam.pam().authenticate("pi", password)
 except ImportError:
-    def _check_password(password):  # dev fallback — pam not installed
-        return password == "raspberry"
+    def _check_password(password):
+        return password == "raspberry"  # dev fallback only
 
 
 def login_required(f):
@@ -80,7 +78,6 @@ def load_settings():
             "dhcp_mask": "255.255.255.0",
             "dhcp_lease": "24h",
             "domain": "fieldday.local",
-            "samba": {"enabled": False, "shares": []},
         }
 
 
@@ -159,40 +156,10 @@ def apply_ap_config(s):
     subprocess.run(["systemctl", "restart", "dnsmasq"], capture_output=True)
 
 
-# ── Samba helpers ──────────────────────────────────────────────────────────────
-
-def write_samba_shares(shares):
-    lines = []
-    for share in shares:
-        lines += [
-            f"[{share['name']}]",
-            f"    comment = {share.get('comment', share['name'])}",
-            f"    path = {share['path']}",
-            f"    valid users = pi",
-            f"    read only = no",
-            f"    browsable = yes",
-            f"    create mask = 0775",
-            f"    directory mask = 0775",
-            "",
-        ]
-    with open(SAMBA_SHARES, "w") as f:
-        f.write("\n".join(lines))
-
-
-def samba_set_pi_password(password):
-    subprocess.run(
-        ["smbpasswd", "-a", "pi", "-s"],
-        input=f"{password}\n{password}\n",
-        capture_output=True, text=True,
-    )
-
-
 def service_status(name):
     r = subprocess.run(["systemctl", "is-active", name], capture_output=True, text=True)
     return r.stdout.strip()
 
-
-# ── Status helpers ─────────────────────────────────────────────────────────────
 
 def get_connected_clients():
     clients = []
@@ -221,9 +188,7 @@ def index():
         "index.html",
         settings=s,
         ap_status=service_status("hostapd"),
-        smb_status=service_status("smbd"),
         clients=get_connected_clients(),
-        samba=s.get("samba", {"enabled": False, "shares": []}),
     )
 
 
@@ -300,101 +265,12 @@ def restart_ap():
     return redirect(url_for("index"))
 
 
-@app.route("/samba", methods=["GET", "POST"])
-@login_required
-def samba():
-    s    = load_settings()
-    smb  = s.setdefault("samba", {"enabled": False, "shares": []})
-    return render_template("samba.html", samba=smb, smb_status=service_status("smbd"))
-
-
-@app.route("/samba/enable", methods=["POST"])
-@login_required
-def samba_enable():
-    s   = load_settings()
-    smb = s.setdefault("samba", {"enabled": False, "shares": []})
-
-    smb_password = request.form.get("smb_password", "").strip()
-    if not smb_password:
-        flash("A Samba password for the pi account is required.", "danger")
-        return redirect(url_for("samba"))
-
-    samba_set_pi_password(smb_password)
-    write_samba_shares(smb.get("shares", []))
-    subprocess.run(["systemctl", "enable", "--now", "smbd"], capture_output=True)
-
-    smb["enabled"] = True
-    save_settings(s)
-    flash("Samba file sharing enabled.", "success")
-    return redirect(url_for("samba"))
-
-
-@app.route("/samba/disable", methods=["POST"])
-@login_required
-def samba_disable():
-    s   = load_settings()
-    smb = s.setdefault("samba", {"enabled": False, "shares": []})
-    subprocess.run(["systemctl", "disable", "--now", "smbd"], capture_output=True)
-    smb["enabled"] = False
-    save_settings(s)
-    flash("Samba file sharing disabled.", "success")
-    return redirect(url_for("samba"))
-
-
-@app.route("/samba/share/add", methods=["POST"])
-@login_required
-def samba_share_add():
-    s   = load_settings()
-    smb = s.setdefault("samba", {"enabled": False, "shares": []})
-
-    name = re.sub(r"[^a-zA-Z0-9_\-]", "", request.form.get("name", "").strip())
-    path = request.form.get("path", "").strip()
-
-    if not name:
-        flash("Share name is required (letters, numbers, _ and - only).", "danger")
-        return redirect(url_for("samba"))
-    if not path.startswith("/"):
-        flash("Directory path must be an absolute path (starts with /).", "danger")
-        return redirect(url_for("samba"))
-    if any(sh["name"] == name for sh in smb.get("shares", [])):
-        flash(f"A share named '{name}' already exists.", "danger")
-        return redirect(url_for("samba"))
-    if not os.path.isdir(path):
-        flash(f"Directory '{path}' does not exist on this Pi.", "danger")
-        return redirect(url_for("samba"))
-
-    smb.setdefault("shares", []).append({"name": name, "path": path})
-    write_samba_shares(smb["shares"])
-    if smb.get("enabled"):
-        subprocess.run(["systemctl", "reload-or-restart", "smbd"], capture_output=True)
-    save_settings(s)
-    flash(f"Share '{name}' added.", "success")
-    return redirect(url_for("samba"))
-
-
-@app.route("/samba/share/delete", methods=["POST"])
-@login_required
-def samba_share_delete():
-    s    = load_settings()
-    smb  = s.setdefault("samba", {"enabled": False, "shares": []})
-    name = request.form.get("name", "").strip()
-
-    smb["shares"] = [sh for sh in smb.get("shares", []) if sh["name"] != name]
-    write_samba_shares(smb["shares"])
-    if smb.get("enabled"):
-        subprocess.run(["systemctl", "reload-or-restart", "smbd"], capture_output=True)
-    save_settings(s)
-    flash(f"Share '{name}' removed.", "success")
-    return redirect(url_for("samba"))
-
-
 @app.route("/api/status")
 @login_required
 def api_status():
     return jsonify({
         "hostapd": service_status("hostapd"),
         "dnsmasq": service_status("dnsmasq"),
-        "smbd":    service_status("smbd"),
         "clients": get_connected_clients(),
     })
 

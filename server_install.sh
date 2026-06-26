@@ -100,11 +100,7 @@ cat > "$FDCONF_DIR/ap_settings.json" << SETTINGS
     "dhcp_end": "192.168.73.200",
     "dhcp_mask": "255.255.255.0",
     "dhcp_lease": "24h",
-    "domain": "fieldday.local",
-    "samba": {
-        "enabled": false,
-        "shares": []
-    }
+    "domain": "fieldday.local"
 }
 SETTINGS
 
@@ -175,20 +171,57 @@ install -m 0644 "$SCRIPT_DIR/systemd/fieldday-ap-ifup.service" /etc/systemd/syst
 systemctl daemon-reload
 systemctl enable fieldday-ap-ifup
 
-# ── 13. Install Samba (shares configured via web admin) ────────────────────────
-log "Installing Samba (disabled by default — configure via web admin)..."
+# ── 13. Configure Samba ────────────────────────────────────────────────────────
+log "Configuring Samba file server..."
+echo ""
+echo "  Press Enter to accept each default shown in [brackets]."
+echo ""
 
-# Add an include at the end of smb.conf so the web admin can manage shares
-# without touching the base config file.
-if ! grep -q "fieldday/samba-shares.conf" /etc/samba/smb.conf; then
-    printf '\n# FieldDay Pi Server managed shares\ninclude = /etc/fieldday/samba-shares.conf\n' \
-        >> /etc/samba/smb.conf
+read -rp "  Share name [fieldday]: " SHARE_NAME
+SHARE_NAME="${SHARE_NAME:-fieldday}"
+
+read -rp "  Share directory [/home/pi/fieldday]: " SHARE_DIR
+SHARE_DIR="${SHARE_DIR:-/home/pi/fieldday}"
+
+read -rp "  SMB username [fieldday]: " SMB_USER
+SMB_USER="${SMB_USER:-fieldday}"
+
+read -rsp "  SMB password [fieldday]: " SMB_PASS
+echo ""
+SMB_PASS="${SMB_PASS:-fieldday}"
+
+# Create share directory owned by pi
+mkdir -p "$SHARE_DIR"
+chown pi:pi "$SHARE_DIR"
+chmod 0775 "$SHARE_DIR"
+log "Share directory: $SHARE_DIR"
+
+# Create SMB system user (login disabled — Samba auth only)
+if ! id "$SMB_USER" &>/dev/null; then
+    useradd -r -s /usr/sbin/nologin -M "$SMB_USER"
 fi
 
-# Empty shares file; the web admin populates it when shares are added.
-touch "$FDCONF_DIR/samba-shares.conf"
+# Write share to smb.conf (force user = pi so file ownership stays consistent)
+if ! grep -q "\[$SHARE_NAME\]" /etc/samba/smb.conf; then
+    cat >> /etc/samba/smb.conf << SMBEOF
 
-# smbd is NOT enabled or started here. The web admin enables it on demand.
+### FieldDay Pi Server ###
+[$SHARE_NAME]
+    path = $SHARE_DIR
+    valid users = $SMB_USER
+    force user = pi
+    read only = no
+    browsable = yes
+    create mask = 0775
+    directory mask = 0775
+SMBEOF
+fi
+
+# Set Samba password for SMB user
+printf '%s\n%s\n' "$SMB_PASS" "$SMB_PASS" | smbpasswd -a "$SMB_USER" -s
+
+systemctl enable --now smbd
+log "Samba share '\\\\192.168.73.100\\$SHARE_NAME' ready (user: $SMB_USER)"
 
 # ── 14. Configure nginx ────────────────────────────────────────────────────────
 log "Configuring nginx..."
@@ -249,7 +282,7 @@ log "║  Eth0 IP     : 192.168.73.100 (static fallback)"
 log "║  Domain      : fieldday.local"
 log "║  Web Admin   : http://192.168.73.1:8080/"
 log "║    Login     : pi / (your pi system password)"
-log "║  Samba       : disabled — enable via Web Admin"
+log "║  Samba share : \\\\192.168.73.100\\$SHARE_NAME  (user: $SMB_USER)"
 log "║  Bluetooth   : disabled (takes effect after reboot)"
 log "╚══════════════════════════════════════════════════════════╝"
 log ""
