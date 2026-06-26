@@ -1,135 +1,123 @@
 # Field Day Pi Server
 
-A self-contained Field Day event server running on a Raspberry Pi.
+A self-contained Field Day event server running on a Raspberry Pi. Provides a WiFi access point, DHCP, local DNS, a web server for event info, and a Samba file share for logging software.
 
-## Services provided
+## Services
 
 | Service | Details |
 |---------|---------|
-| WiFi Access Point | USB WiFi adapter required — SSID **FieldDay**, 192.168.73.0/24 |
-| DHCP + DNS | dnsmasq — domain **fieldday.local** |
-| Web Admin UI | AP and Samba configuration at `http://192.168.73.1:8080/` |
-| Web Server | nginx on port 80 — event info and software downloads |
-| Windows File Server | Samba — disabled by default, enabled via Web Admin |
+| WiFi Access Point | USB WiFi adapter required — defaults to SSID **FieldDay**, 192.168.73.0/24 |
+| DHCP + DNS | dnsmasq — default domain **fieldday.local** |
+| Web Server | nginx on port 80 — static event info and software downloads |
+| Windows File Server | Samba — default share **fieldday**, user **fieldday** |
 
-## Hardware requirements
+## Hardware
 
 - Raspberry Pi 3, 4, or 5
 - 16 GB microSD Class 10 or faster
-- **USB WiFi adapter** (required for the Access Point — onboard WiFi is not used)
-- Ethernet cable for initial setup (optional after AP is running)
+- **USB WiFi adapter** — required for the access point; onboard WiFi is not used
+- Ethernet for initial setup (optional once the AP is running)
 
-## Software requirements
+## Software
 
-- **Raspberry Pi OS Trixie or Bookworm** (64-bit Lite recommended) — also works on Bullseye
-- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the image
+**Raspberry Pi OS Trixie or Bookworm** (64-bit Lite recommended). Also works on Bullseye.  
+Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the image.
 
-## Initial Pi setup
+## Setup
 
-After flashing the SD card and booting:
+### 1. Initial Pi configuration
 
-```bash
-sudo raspi-config
-```
-
-Within raspi-config, make these changes:
+After first boot, run `raspi-config` and make these changes:
 
 - Change the `pi` user password
-- Set hostname (e.g. `fieldday-pi`)
+- Set hostname (e.g. `fieldday`)
 - Boot to text console (no auto-login)
 - Enable SSH
-- Set GPU memory to 16 MB
-- Set locale/timezone to your region
-- Set Predictable Network Interface Names → **No**
+- GPU memory → 16 MB
+- Locale and timezone → your region
+- Predictable Network Interface Names → **No**
 - Finish → reboot
 
-## Installation
+### 2. Clone the repo
 
 ```bash
 sudo apt-get -y install git
 git clone https://github.com/joecupano/FieldDayPiServer.git
 cd FieldDayPiServer
+```
+
+### 3. Edit fdnetwork.conf
+
+Open `fdnetwork.conf` and adjust any settings before running the install script.  
+**All network and Samba configuration lives here** — no prompts during install.
+
+```bash
+nano fdnetwork.conf
+```
+
+### 4. Run the install script
+
+```bash
 sudo bash server_install.sh
 ```
 
-The script detects the OS release and Pi model automatically.  
-When prompted, reboot to activate Bluetooth disable and the WiFi AP.
+Reboot when prompted to activate the WiFi AP and Bluetooth disable.
 
-## Default configuration
+---
 
-| Setting | Default |
-|---------|---------|
-| AP SSID | `FieldDay` |
-| AP Passphrase | `fieldday1234` |
-| AP Interface | first USB WiFi detected (e.g. `wlan1`) |
-| AP IP / Gateway | `192.168.73.1` |
-| DHCP Range | `192.168.73.10` – `192.168.73.200` |
-| Domain | `fieldday.local` |
-| eth0 IP (fallback) | `192.168.73.100` |
-| Samba `fieldday` user | `fd2021` |
-| Bluetooth | **disabled** |
+## fdnetwork.conf reference
 
-## Web Admin UI
+```bash
+# WiFi Access Point
+AP_SSID="FieldDay"          # Network name clients see
+AP_PASSPHRASE="fieldday1234" # WPA2 passphrase (8–63 chars)
+AP_CHANNEL=6                # WiFi channel — 1, 6, or 11 recommended
+AP_IP="192.168.73.1"        # Pi's IP on the wireless network (gateway)
+AP_PREFIX=24                # Subnet prefix length
+DHCP_START="192.168.73.10"  # First IP issued to clients
+DHCP_END="192.168.73.200"   # Last IP issued to clients
+DHCP_LEASE="24h"            # Lease duration
+DOMAIN="fieldday.local"     # Local DNS domain
 
-Access at `http://192.168.73.1:8080/` (or `http://fieldday.local:8080/`) from any device connected to the FieldDay WiFi.
+# Samba File Sharing
+SHARE_NAME="fieldday"       # Windows share name  \\<ip>\fieldday
+SHARE_DIR="/home/pi/fieldday" # Directory on the Pi to share
+SMB_USER="fieldday"         # Username for Windows clients
+SMB_PASS="fieldday"         # Password for Windows clients
+```
 
-The admin lets you change:
+The install script copies `fdnetwork.conf` to `/etc/fieldday/fdnetwork.conf` and appends the detected USB WiFi interface name (`AP_IFACE`). Edit the repo copy and re-run the installer to change settings.
 
-- SSID and passphrase
-- WiFi channel (1–11; 1, 6, 11 recommended)
-- AP IP address
-- DHCP range
-- Local domain name
+---
 
-Changes are written to `/etc/hostapd/hostapd.conf` and `/etc/dnsmasq.conf` and applied immediately — connected clients will briefly disconnect.
+## Default access after install
 
-## Wireless AP notes
-
-- **Only a USB WiFi adapter is used for the AP.** The install script detects USB WiFi automatically (wlan1 or higher). Onboard wlan0 is never used for the AP.
-- On Bookworm, NetworkManager is configured to leave the AP interface unmanaged.
-- The AP interface is brought up by the `fieldday-ap-ifup` systemd service before hostapd starts.
-
-## Bluetooth
-
-Bluetooth is disabled via `dtoverlay=disable-bt` in the boot config and by masking the `hciuart` and `bluetooth` systemd services. A reboot is required to take effect.
+| Resource | Address |
+|----------|---------|
+| WiFi SSID | FieldDay (passphrase: fieldday1234) |
+| Pi AP IP | 192.168.73.1 |
+| Pi Ethernet IP | 192.168.73.100 (static fallback) |
+| Event website | http://192.168.73.100/ |
+| Samba share | \\192.168.73.100\fieldday |
+| Samba login | fieldday / fieldday |
+| Local domain | fieldday.local |
 
 ## File structure
 
 ```
 FieldDayPiServer/
-├── server_install.sh          Main install script
-├── sample-web-site/           Static HTML copied to /var/www/html
-├── web-admin/
-│   ├── app.py                 Flask web admin (installed to /opt/fieldday-admin/)
-│   ├── templates/
-│   │   ├── base.html
-│   │   ├── index.html         Dashboard
-│   │   └── ap.html            AP configuration form
-│   └── static/style.css
-├── systemd/
-│   ├── fieldday-admin.service Web admin systemd unit
-│   └── fieldday-ap-ifup.service  AP interface IP setup
-└── scripts/
-    └── fieldday-ap-ifup.sh    Brings up AP interface with static IP
+├── fdnetwork.conf             Edit before install — all network settings
+├── server_install.sh          Install script
+├── sample-web-site/           Static HTML copied to /var/www/html/
+├── scripts/
+│   └── fieldday-ap-ifup.sh   Brings up the AP interface at boot
+└── systemd/
+    └── fieldday-ap-ifup.service
 ```
 
-## Runtime file locations
+## Notes
 
-| File | Purpose |
-|------|---------|
-| `/etc/fieldday/ap_settings.json` | AP settings (source of truth for web UI) |
-| `/etc/hostapd/hostapd.conf` | Generated from ap_settings.json |
-| `/etc/dnsmasq.conf` | Generated from ap_settings.json |
-| `/opt/fieldday-admin/` | Web admin application |
-| `/var/www/html/` | Main Field Day website |
-
-## Samba shares
-
-After install, the following shares are available:
-
-```
-\\192.168.73.100\fieldday   → /home/fieldday  (user: fieldday / pass: fd2021)
-\\192.168.73.100\pi         → /home/pi        (user: pi / pass: raspberry)
-```
-
-Place N3FJP or other log databases in `/home/fieldday`.
+- **Bluetooth** is disabled via `dtoverlay=disable-bt` in the boot config. A reboot is required.
+- **USB WiFi only** — the install script detects the first USB wireless interface (typically `wlan1`). Onboard `wlan0` is never used for the AP.
+- **File ownership** — the Samba share uses `force user = pi`, so all files created through the share are owned by the `pi` account regardless of which SMB user connects.
+- To update the event website, replace files in `/var/www/html/`. See `sample-web-site/` for examples.
