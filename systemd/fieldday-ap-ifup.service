@@ -1,0 +1,13 @@
+[Unit]
+Description=FieldDay AP Interface IP Setup
+After=network-pre.target
+Before=hostapd.service dnsmasq.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/fieldday-ap-ifup.sh
+
+[Install]
+WantedBy=multi-user.target
