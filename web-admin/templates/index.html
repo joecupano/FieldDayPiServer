@@ -1,9 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h2>Access Point Status:
-  <span class="status-{{ 'ok' if status == 'active' else 'err' }}">{{ status }}</span>
-</h2>
+<h2>Access Point — <span class="status-{{ 'ok' if ap_status == 'active' else 'err' }}">{{ ap_status }}</span></h2>
 
 <table>
   <tr><th>SSID</th>        <td>{{ settings.ssid }}</td></tr>
@@ -20,6 +18,19 @@
     <button onclick="return confirm('Restart the AP? Clients will briefly disconnect.')">Restart AP</button>
   </form>
 </p>
+
+<h2>Samba File Sharing — <span class="status-{{ 'ok' if smb_status == 'active' else 'err' }}">{{ smb_status }}</span></h2>
+
+{% if samba.shares %}
+<table>
+  <tr><th>Share</th><th>Path</th></tr>
+  {% for sh in samba.shares %}
+  <tr><td>{{ sh.name }}</td><td>{{ sh.path }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No shares configured. <a href="/samba">Set up Samba</a></p>
+{% endif %}
 
 <h2>Connected Clients ({{ clients | length }})</h2>
 

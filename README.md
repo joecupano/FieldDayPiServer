@@ -8,9 +8,9 @@ A self-contained Field Day event server running on a Raspberry Pi.
 |---------|---------|
 | WiFi Access Point | USB WiFi adapter required — SSID **FieldDay**, 192.168.73.0/24 |
 | DHCP + DNS | dnsmasq — domain **fieldday.local** |
-| Web Admin UI | AP configuration at `http://192.168.73.1:8080/` |
+| Web Admin UI | AP and Samba configuration at `http://192.168.73.1:8080/` |
 | Web Server | nginx on port 80 — event info and software downloads |
-| Windows File Server | Samba shares for log files |
+| Windows File Server | Samba — disabled by default, enabled via Web Admin |
 
 ## Hardware requirements
 

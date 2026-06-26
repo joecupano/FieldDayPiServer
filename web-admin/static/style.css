@@ -6,24 +6,29 @@ main        { padding: 1.5rem 2rem; max-width: 700px; }
 footer      { padding: 1rem 2rem; color: #888; font-size: .85rem; }
 
 h2 { margin-top: 1.5rem; }
+h3 { margin-top: 1.25rem; }
 
 table       { border-collapse: collapse; margin-bottom: 1rem; }
 th, td      { padding: .35rem .75rem; border: 1px solid #ccc; text-align: left; }
 th          { background: #eee; }
 
 form label  { display: block; margin-bottom: .8rem; font-weight: bold; }
-form label input,
-form label select { display: block; font-weight: normal; margin-top: .25rem;
-                    padding: .3rem .5rem; width: 100%; max-width: 340px; box-sizing: border-box; }
+form label input { display: block; font-weight: normal; margin-top: .25rem;
+                   padding: .3rem .5rem; width: 100%; max-width: 340px; box-sizing: border-box; }
 
-button, a[href="/"] { padding: .35rem .9rem; cursor: pointer; margin-right: .5rem; }
+button      { padding: .35rem .9rem; cursor: pointer; margin-right: .5rem; }
 
-.msg        { padding: .5rem .75rem; border-radius: 3px; margin-bottom: .75rem; }
+.msg         { padding: .5rem .75rem; border-radius: 3px; margin-bottom: .75rem; }
 .msg-success { background: #d4edda; color: #155724; }
 .msg-danger  { background: #f8d7da; color: #721c24; }
 .msg-warning { background: #fff3cd; color: #856404; }
 
 .status-ok  { color: green; }
-.status-err { color: red; }
+.status-err { color: #999; }
 
 .note { color: #666; font-size: .9rem; }
+
+/* Login page */
+body.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #222; }
+.login-box      { background: #fff; padding: 2rem; border-radius: 4px; width: 100%; max-width: 320px; }
+.login-box h1   { margin: 0 0 1.25rem; font-size: 1.2rem; }

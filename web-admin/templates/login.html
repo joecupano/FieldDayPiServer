@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FieldDay Pi — Login</title>
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="login-page">
+
+<div class="login-box">
+  <h1>&#128225; FieldDay Pi</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <p class="msg msg-{{ cat }}">{{ msg }}</p>
+  {% endfor %}
+  {% endwith %}
+
+  <form method="post">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>Username
+      <input type="text" value="pi" readonly>
+    </label>
+    <label>Password
+      <input type="password" name="password" autofocus required>
+    </label>
+    <button type="submit">Log in</button>
+  </form>
+</div>
+
+</body>
+</html>

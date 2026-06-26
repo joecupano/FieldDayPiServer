@@ -3,11 +3,11 @@
 ###
 ### Field Day Pi Server Install
 ###
-### Supports: Raspberry Pi OS Bookworm/Bullseye on Pi 3, 4, and 5
+### Supports: Raspberry Pi OS Trixie/Bookworm/Bullseye on Pi 3, 4, and 5
 ###
 
 ##
-## REVISION: 20260626-0001
+## REVISION: 20260626-0002
 ##
 
 set -e
@@ -51,7 +51,7 @@ log "Disabling Bluetooth..."
 if ! grep -q "dtoverlay=disable-bt" "$BOOT_CONFIG"; then
     printf '\n# Disable Bluetooth (FieldDay Pi Server)\ndtoverlay=disable-bt\n' >> "$BOOT_CONFIG"
 fi
-systemctl disable --now hciuart.service  2>/dev/null || true
+systemctl disable --now hciuart.service   2>/dev/null || true
 systemctl disable --now bluetooth.service 2>/dev/null || true
 
 # ── 5. Install required packages ───────────────────────────────────────────────
@@ -60,7 +60,7 @@ apt-get install -y \
     hostapd dnsmasq \
     nginx \
     samba samba-common-bin \
-    python3 python3-flask \
+    python3 python3-flask python3-pam \
     iw wireless-tools \
     git
 
@@ -70,7 +70,6 @@ AP_IFACE=""
 for iface in $(ls /sys/class/net/); do
     [[ "$iface" != wlan* ]] && continue
     dev_path=$(readlink -f "/sys/class/net/$iface/device" 2>/dev/null || true)
-    # USB devices have 'usb' in their sysfs path
     if echo "$dev_path" | grep -qi "usb"; then
         AP_IFACE="$iface"
         log "USB WiFi  : $AP_IFACE"
@@ -101,11 +100,20 @@ cat > "$FDCONF_DIR/ap_settings.json" << SETTINGS
     "dhcp_end": "192.168.73.200",
     "dhcp_mask": "255.255.255.0",
     "dhcp_lease": "24h",
-    "domain": "fieldday.local"
+    "domain": "fieldday.local",
+    "samba": {
+        "enabled": false,
+        "shares": []
+    }
 }
 SETTINGS
 
-# ── 8. Tell NetworkManager to ignore the AP interface (Bookworm) ───────────────
+# ── 8. Generate web admin secret key ───────────────────────────────────────────
+log "Generating admin secret key..."
+python3 -c "import secrets; print(secrets.token_hex(32))" > "$FDCONF_DIR/admin_secret.key"
+chmod 600 "$FDCONF_DIR/admin_secret.key"
+
+# ── 9. Tell NetworkManager to ignore the AP interface (Bookworm/Trixie) ────────
 if systemctl is-active --quiet NetworkManager 2>/dev/null; then
     log "Configuring NetworkManager to ignore $AP_IFACE..."
     mkdir -p /etc/NetworkManager/conf.d
@@ -116,7 +124,7 @@ NMEOF
     nmcli general reload 2>/dev/null || true
 fi
 
-# ── 9. Generate hostapd config ─────────────────────────────────────────────────
+# ── 10. Generate hostapd config ────────────────────────────────────────────────
 log "Configuring hostapd (WiFi Access Point)..."
 cat > /etc/hostapd/hostapd.conf << HAEOF
 interface=$AP_IFACE
@@ -137,7 +145,6 @@ rsn_pairwise=CCMP
 country_code=US
 HAEOF
 
-# Point hostapd to our config
 if [ -f /etc/default/hostapd ]; then
     sed -i 's|#\?DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
 fi
@@ -145,7 +152,7 @@ fi
 systemctl unmask hostapd
 systemctl enable hostapd
 
-# ── 10. Generate dnsmasq config ────────────────────────────────────────────────
+# ── 11. Generate dnsmasq config ────────────────────────────────────────────────
 log "Configuring dnsmasq (DHCP + DNS)..."
 [ -f /etc/dnsmasq.conf ] && mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
 cat > /etc/dnsmasq.conf << DMEOF
@@ -161,47 +168,27 @@ DMEOF
 
 systemctl enable dnsmasq
 
-# ── 11. Install AP interface setup service ─────────────────────────────────────
+# ── 12. Install AP interface setup service ─────────────────────────────────────
 log "Installing fieldday-ap-ifup service..."
 install -m 0755 "$SCRIPT_DIR/scripts/fieldday-ap-ifup.sh" /usr/local/sbin/fieldday-ap-ifup.sh
 install -m 0644 "$SCRIPT_DIR/systemd/fieldday-ap-ifup.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable fieldday-ap-ifup
 
-# ── 12. Create fieldday user ───────────────────────────────────────────────────
-log "Creating 'fieldday' user..."
-if ! id fieldday &>/dev/null; then
-    adduser --disabled-password --gecos "Field Day" fieldday
-fi
-echo "fieldday:fd2021" | chpasswd
+# ── 13. Install Samba (shares configured via web admin) ────────────────────────
+log "Installing Samba (disabled by default — configure via web admin)..."
 
-# ── 13. Configure Samba ────────────────────────────────────────────────────────
-log "Configuring Samba..."
-if ! grep -q "\[fieldday\]" /etc/samba/smb.conf; then
-    cat >> /etc/samba/smb.conf << 'SMBEOF'
-
-### FieldDay Pi Server ###
-[fieldday]
-    path = /home/fieldday
-    valid users = fieldday
-    read only = no
-    browsable = yes
-    create mask = 0775
-    directory mask = 0775
-
-[pi]
-    path = /home/pi
-    valid users = pi
-    read only = no
-    browsable = yes
-    create mask = 0775
-    directory mask = 0775
-SMBEOF
+# Add an include at the end of smb.conf so the web admin can manage shares
+# without touching the base config file.
+if ! grep -q "fieldday/samba-shares.conf" /etc/samba/smb.conf; then
+    printf '\n# FieldDay Pi Server managed shares\ninclude = /etc/fieldday/samba-shares.conf\n' \
+        >> /etc/samba/smb.conf
 fi
 
-printf 'fd2021\nfd2021\n'    | smbpasswd -a fieldday -s 2>/dev/null || true
-printf 'raspberry\nraspberry\n' | smbpasswd -a pi      -s 2>/dev/null || true
-systemctl restart smbd
+# Empty shares file; the web admin populates it when shares are added.
+touch "$FDCONF_DIR/samba-shares.conf"
+
+# smbd is NOT enabled or started here. The web admin enables it on demand.
 
 # ── 14. Configure nginx ────────────────────────────────────────────────────────
 log "Configuring nginx..."
@@ -212,7 +199,6 @@ systemctl restart nginx
 # ── 15. Configure static Ethernet IP (eth0 fallback) ──────────────────────────
 log "Configuring eth0 static IP fallback..."
 if [ -f /etc/dhcpcd.conf ] && ! grep -q "FieldDay Pi Server" /etc/dhcpcd.conf; then
-    # Bullseye and earlier: dhcpcd profiles
     cat >> /etc/dhcpcd.conf << 'DHEOF'
 
 ### FieldDay Pi Server ###
@@ -225,7 +211,6 @@ interface eth0
 fallback fieldday_net
 DHEOF
 elif systemctl is-active --quiet NetworkManager 2>/dev/null; then
-    # Bookworm: use nmcli for wired fallback
     if ! nmcli connection show "FieldDay-eth0" &>/dev/null; then
         nmcli connection add \
             type ethernet \
@@ -263,11 +248,9 @@ log "║  AP IP       : 192.168.73.1"
 log "║  Eth0 IP     : 192.168.73.100 (static fallback)"
 log "║  Domain      : fieldday.local"
 log "║  Web Admin   : http://192.168.73.1:8080/"
-log "║  Field Day   : http://192.168.73.100/"
+log "║    Login     : pi / (your pi system password)"
+log "║  Samba       : disabled — enable via Web Admin"
 log "║  Bluetooth   : disabled (takes effect after reboot)"
-log "╠══════════════════════════════════════════════════════════╣"
-log "║  Default AP passphrase : fieldday1234                    ║"
-log "║  Samba fieldday user   : fd2021                          ║"
 log "╚══════════════════════════════════════════════════════════╝"
 log ""
 read -rp "Reboot now to activate Bluetooth disable + AP? [y/N] " REBOOT_NOW
